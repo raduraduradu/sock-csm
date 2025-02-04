@@ -6,6 +6,7 @@
 #include<errno.h>
 
 #define PORT "3490"
+#define BACKLOG 10
 
 int getSock(struct addrinfo *node);
 
@@ -20,20 +21,27 @@ int main(){
     hints.ai_socktype = SOCK_STREAM;
 
     if (getaddrinfo(NULL, PORT, &hints, &res) == -1){
-        fprintf(stderr, "getaddrinfo() error: %s\n", strerror(errno));
+        perror("getaddrinfo() error");
         exit(-1);
     }
-
-    //struct addrinfo *emptyNode = malloc(sizeof(struct addrinfo));
-    //emptyNode->ai_next = NULL;
-    //struct addrinfo *emptyNode2 = malloc(sizeof(struct addrinfo));
-    //emptyNode2->ai_next = emptyNode;
-
 
     sockfd = getSock(res);
     if(bind(sockfd, res->ai_addr, res->ai_addrlen) == -1) {
         perror("bind() error");
-        exit(1);
+        exit(-1);
+    }
+    if(listen(sockfd, BACKLOG) == -1) {
+        perror("listen() error");
+        exit(-1);
+    }
+    
+    struct sockaddr_storage new_addr;
+    int new_fd;
+
+    while(1){
+        new_fd = accept(sockfd, new_addr, sizeof(struct sockaddr_storage));
+        fork()
+        //TODO
     }
 
 
@@ -45,7 +53,6 @@ int getSock(struct addrinfo *res){
     
     for(struct addrinfo *p = res; p != NULL; p = p->ai_next) {
         if((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1){
-            printf("failed one result, moving forward\n");
             continue;
         }
         else {
