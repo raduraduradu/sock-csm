@@ -7,6 +7,7 @@
 
 #define PORT "3490"
 #define BACKLOG 10
+#define MAX_MSG_LEN 100
 
 int getSock(struct addrinfo *node);
 
@@ -36,11 +37,13 @@ int main(){
     }
     
     struct sockaddr_storage new_addr;
+    socklen_t sa_storage_len = sizeof(struct sockaddr_storage);
+
     int new_fd;
 
     while(1){
-        new_fd = accept(sockfd, new_addr, sizeof(struct sockaddr_storage));
-        fork()
+        new_fd = accept(sockfd, (struct sockaddr *) &new_addr, &sa_storage_len);
+        send(new_fd, "vam conectat", MAX_MSG_LEN, 0);
         //TODO
     }
 
@@ -56,6 +59,7 @@ int getSock(struct addrinfo *res){
             continue;
         }
         else {
+            freeaddrinfo(res);
             res = p;
             return sock;
         }
