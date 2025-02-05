@@ -1,1 +1,1 @@
-gcc -o server server.c helpers.c
+gcc -o server src/server.c src/helpers.c

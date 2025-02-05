@@ -1,1 +1,1 @@
-gcc -o client client.c helpers.c
+gcc -o client src/client.c src/helpers.c
