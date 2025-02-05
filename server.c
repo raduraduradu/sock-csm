@@ -1,3 +1,4 @@
+#include "helpers.h"
 #include<stdio.h>
 #include<stdlib.h>
 #include<sys/socket.h>
@@ -5,9 +6,7 @@
 #include<string.h>
 #include<errno.h>
 
-#define PORT "3490"
 #define BACKLOG 10
-#define MAX_MSG_LEN 100
 
 int getSock(struct addrinfo *node);
 
@@ -41,29 +40,13 @@ int main(){
 
     int new_fd;
 
+    char message[] = "vam conectat";
     while(1){
         new_fd = accept(sockfd, (struct sockaddr *) &new_addr, &sa_storage_len);
-        send(new_fd, "vam conectat", MAX_MSG_LEN, 0);
+        send(new_fd, message, sizeof message, 0);
         //TODO
     }
 
 
     freeaddrinfo(res);
-}
-
-int getSock(struct addrinfo *res){
-    int sock;
-    
-    for(struct addrinfo *p = res; p != NULL; p = p->ai_next) {
-        if((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1){
-            continue;
-        }
-        else {
-            freeaddrinfo(res);
-            res = p;
-            return sock;
-        }
-    }
-    fprintf(stderr, "socket() failed on all results from getaddrinfo()\n");
-    exit(-1);
 }

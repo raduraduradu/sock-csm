@@ -1,3 +1,4 @@
+#include "helpers.h"
 #include<stdio.h>
 #include<stdlib.h>
 #include<sys/socket.h>
@@ -5,11 +6,6 @@
 #include<string.h>
 #include<errno.h>
 #include<unistd.h>
-
-#define PORT "3490"
-#define MAX_MSG_LEN 100
-
-int getSock(struct addrinfo *res);
 
 int main(int argc, char *argv[]){
 
@@ -39,6 +35,24 @@ int main(int argc, char *argv[]){
     int parent_pid = getpid();
     fork();
     if(getpid() == parent_pid) {
+        char outbuf[MAX_MSG_LEN];
+        int recv_status;
+        while(1){
+            //receiving and outputting messages loop
+            bzero(outbuf, MAX_MSG_LEN);
+            recv_status = recv(sockfd, outbuf, MAX_MSG_LEN, 0);
+            if(recv_status == -1) {
+                perror("recv() error");
+                exit(-1);
+            }
+            else if (recv_status == 0){
+                printf("\nserver closed connection. Exiting.....\n");
+                exit(0);
+            }
+            printf("\n%s\n", outbuf);
+        }
+    }
+    else {
         char inbuf[MAX_MSG_LEN];
         while(1){
             //user input and sending loop
@@ -50,35 +64,6 @@ int main(int argc, char *argv[]){
             }
         }
     }
-    else {
-        char outbuf[MAX_MSG_LEN];
-        while(1){
-            //receiving and outputting messages loop
-            bzero(outbuf, MAX_MSG_LEN);
-            if(recv(sockfd, outbuf, MAX_MSG_LEN, 0) == -1) {
-                perror("recv() error");
-                exit(-1);
-            }
-            printf("\n%s\n", outbuf);
-        }
-    }
 
     freeaddrinfo(res);
-}
-
-int getSock(struct addrinfo *res){
-    int sock;
-
-    for(struct addrinfo *p = res; p != NULL; p = p->ai_next){
-        if((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            continue;
-        }
-        else {
-            freeaddrinfo(res);
-            res = p;
-            return sock;
-        }
-    }
-    fprintf(stderr, "socket() failed on all results from getaddrinfo()\n");
-    exit(-1);
 }
