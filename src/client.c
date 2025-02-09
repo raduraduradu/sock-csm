@@ -6,6 +6,7 @@
 #include<string.h>
 #include<errno.h>
 #include<unistd.h>
+#include<signal.h>
 
 int main(int argc, char *argv[]){
 
@@ -32,9 +33,8 @@ int main(int argc, char *argv[]){
         exit(-1);
     }
 
-    int parent_pid = getpid();
-    fork();
-    if(getpid() == parent_pid) {
+    int pid = fork();
+    if(pid != 0) {
         char outbuf[MAX_MSG_LEN];
         int recv_status;
         while(1){
@@ -64,6 +64,5 @@ int main(int argc, char *argv[]){
             }
         }
     }
-
-    freeaddrinfo(res);
+    //TODO: handle SIGINT, freeaddrinfo and close file descriptors
 }
