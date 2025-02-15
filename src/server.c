@@ -11,9 +11,51 @@
 #include<unistd.h>
 #include<fcntl.h>
 #include<sys/stat.h>
+#include<pthread.h>
 
 #define BACKLOG 10
 #define SEM_SENDER_FN "/sendersem"
+
+//#define INIT_CLIENT {->prev = NULL, ->next = NULL}
+//#define MAX_CLIENTS 10
+
+struct client_node* init_client();
+void removeNode(struct client_node* node);
+
+//int client_sockets[MAX_CLIENTS];
+//pthread_t client_threads[MAX_CLIENTS];
+
+struct client_node *clients_dll; //doubly linked list node for client struct
+struct client_node *current_client;
+
+char last_msg[MAX_MSG_LEN];
+
+void * handle_client(void *arg) {
+    struct client_node *thisNode = (struct client_node*) arg;
+    while(1){
+        //lock
+        //recv into last_msg
+        int recvstatus = recv(thisNode->data.sockfd, last_msg, MAX_MSG_LEN, 0);
+        if (recvstatus == -1) {
+            printf("cam da\n");
+            perror("recv() error");
+            exit(-1);
+        }
+        else if (recvstatus == 0){
+            pthread_t thisThread = thisNode->data.thread;
+            removeNode(thisNode);
+            printf("a client has disconnected\n");
+            pthread_exit(&thisThread);
+        }
+        printf("%s\n", last_msg);
+        //send last_msg to all clients
+        for(struct client_node *p = clients_dll; p != NULL; p = p->next){
+            send(p->data.sockfd, last_msg, MAX_MSG_LEN, 0);
+        }
+        //unlock
+    }
+}
+
 
 int main(){
     
@@ -40,60 +82,46 @@ int main(){
         exit(-1);
     }
     
-    struct sockaddr_storage new_addr;
+    struct sockaddr_storage addr_storage;
     socklen_t sa_storage_len = sizeof(struct sockaddr_storage);
 
-    int ch_sfd; //client handler socket file descriptor
+    clients_dll = init_client();
+    current_client = clients_dll;
 
-    if (char (*last_msg)[MAX_MSG_LEN] = mmap(NULL, MAX_MSG_LEN,
-                             PROT_READ | PROT_WRITE,
-                             MAP_SHARED | MAP_ANON, -1, 0) == MAP_FAILED){
-        perror("mmap() error");
-        exit(2)
+    current_client->data.sockfd = accept(listener_sfd, (struct sockaddr*) &addr_storage, &sa_storage_len);
+    pthread_create(&(current_client->data.thread), NULL, handle_client, current_client);
+
+    int new_sfd;
+    while(1) {
+        new_sfd = accept(listener_sfd, (struct sockaddr*) &addr_storage, &sa_storage_len);
+        current_client->next = init_client();
+        current_client->next->prev = current_client;
+        current_client = current_client->next;
+
+        current_client->data.sockfd = new_sfd;
+        pthread_create(&(current_client->data.thread), NULL, handle_client, current_client);
     }
+}
 
-    strcpy(*last_msg, "Succesfully connected to server");
+struct client_node* init_client(){
+    struct client_node *node = malloc(sizeof(struct client_node));
+    node->prev = NULL;
+    node->next = NULL;
+}
 
-    sem_unlink(SEM_SENDER_FN);
-    if(sem_t *sender_sem = sem_open(SEM_SENDER_FN, O_CREAT, S_IRWXU, 1) == SEM_FAILED) {
-        perror("sem_open() error");
-        exit(3);
+void removeNode(struct client_node* node){
+    if(node->prev == NULL){
+        clients_dll = node->next;
+        clients_dll->prev = NULL;
     }
-
-    while(1){
-        ch_sfd = accept(listener_sfd, (struct sockaddr *) &new_addr, &sa_storage_len);
-        send(ch_sfd, *last_msg, strlen(*last_msg), 0);
-        //fork a client handler
-        fork();
-        close(listener_sfd);
-        int id = fork(); //fork into a receiving process and a sending process
-        if (id != 0){
-            char inbuf[MAX_MSG_LEN];
-            while(1){
-                int recvStatus = recv(ch_sfd, inbuf, MAX_MSG_LEN, 0);
-                if(recvStatus == -1){
-                    perror("recv error in client handler");
-                    kill(id, SIGINT);
-                    exit(-1);
-                }else if (recvStatus == 0) {
-                    kill(id, SIGINT);
-                    exit(0);
-                }
-                strcpy(*last_msg, inbuf);
-
-                printf("[%s]", *last_msg);
-                //send signal that child process waits for
-                sem_post(sender_sem);
-            }
-        }
-        else {
-            while(1){
-                //wait for signal that *last_msg has changed
-                sem_wait(sender_sem);
-                send(ch_sfd, *last_msg, MAX_MSG_LEN, 0);
-            }
-        }
+    else if (node->next == NULL){
+        current_client = node->prev;
+        current_client->next = NULL;
     }
-    //TODO: handle SIGINT and errors, freeaddrinfo and close file descriptors
-    //also add more error checking if needed
+    else{
+        node->prev->next = node->next;
+        node->next->prev = node->prev;
+    }
+    free(node);
+    node = NULL;
 }

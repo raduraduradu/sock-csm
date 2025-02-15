@@ -33,8 +33,7 @@ int main(int argc, char *argv[]){
         exit(-1);
     }
 
-    int pid = fork();
-    if(pid != 0) {
+    if(fork() != 0) {
         char outbuf[MAX_MSG_LEN];
         int recv_status;
         while(1){
