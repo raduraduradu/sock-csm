@@ -110,6 +110,8 @@ struct client_node* init_client(){
     struct client_node *node = malloc(sizeof(struct client_node));
     node->prev = NULL;
     node->next = NULL;
+
+    return(node);
 }
 
 void removeNode(struct client_node* node){
