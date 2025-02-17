@@ -85,18 +85,21 @@ int main(){
     struct sockaddr_storage addr_storage;
     socklen_t sa_storage_len = sizeof(struct sockaddr_storage);
 
-    clients_dll = init_client();
-    current_client = clients_dll;
-
-    current_client->data.sockfd = accept(listener_sfd, (struct sockaddr*) &addr_storage, &sa_storage_len);
-    pthread_create(&(current_client->data.thread), NULL, handle_client, current_client);
-
+    clients_dll = NULL;
+    
     int new_sfd;
     while(1) {
         new_sfd = accept(listener_sfd, (struct sockaddr*) &addr_storage, &sa_storage_len);
-        current_client->next = init_client();
-        current_client->next->prev = current_client;
-        current_client = current_client->next;
+
+        if (clients_dll == NULL) {
+            clients_dll = init_client();
+            current_client = clients_dll;
+        }
+        else {
+            current_client->next = init_client();
+            current_client->next->prev = current_client;
+            current_client = current_client->next;
+        }
 
         current_client->data.sockfd = new_sfd;
         pthread_create(&(current_client->data.thread), NULL, handle_client, current_client);
@@ -110,6 +113,12 @@ struct client_node* init_client(){
 }
 
 void removeNode(struct client_node* node){
+    if(node->prev == NULL && node->next == NULL){
+        free(node);
+        node = NULL;
+        clients_dll = NULL;
+        return;
+    }
     if(node->prev == NULL){
         clients_dll = node->next;
         clients_dll->prev = NULL;
