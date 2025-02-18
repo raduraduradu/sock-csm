@@ -13,20 +13,27 @@
 
 #define BACKLOG 10
 
-struct client_node* init_client();
+struct client_node* init_clientnode();
 void removeNode(struct client_node* node);
 
 struct client_node *clients_dll; //doubly linked list node for client struct
 struct client_node *current_client;
 
 char last_msg[MAX_MSG_LEN];
-pthread_mutex_t sender_lock = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_mutex_t sender_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t removeNode_lock = PTHREAD_MUTEX_INITIALIZER;
+
 
 void * handle_client(void *arg) {
     struct client_node *thisNode = (struct client_node*) arg;
     char inbuf[MAX_MSG_LEN];
+
+    strcpy(inbuf, "succesfully connected to server\n");
+    send(thisNode->data.sockfd, inbuf, MAX_MSG_LEN, 0);
+
+    printf("%s has connected\n\n", thisNode->data.name);
+
     while(1){
         int recvstatus = recv(thisNode->data.sockfd, inbuf, MAX_MSG_LEN, 0);
         if (recvstatus == -1) {
@@ -35,22 +42,23 @@ void * handle_client(void *arg) {
         }
         else if (recvstatus == 0){
             struct client thisClient = thisNode->data;
+
             pthread_mutex_lock(&removeNode_lock);
             removeNode(thisNode);
             pthread_mutex_unlock(&removeNode_lock);
 
-            printf("a client has disconnected\n");
+            printf("%s has disconnected\n\n", thisClient.name);
             pthread_exit(&(thisClient.thread));
         }
-        printf("%s\n", inbuf);
-        //lock
+        printf("[%s] %s\n", thisNode->data.name, inbuf);
+
         pthread_mutex_lock(&sender_lock);
-        strcpy(last_msg, inbuf);
+        sprintf(last_msg, "[%s]: %s", thisNode->data.name, inbuf);
+        //strcpy(last_msg, inbuf);
         //send last_msg to all clients
         for(struct client_node *p = clients_dll; p != NULL; p = p->next){
             send(p->data.sockfd, last_msg, MAX_MSG_LEN, 0);
         }
-        //unlock
         pthread_mutex_unlock(&sender_lock);
     }
 }
@@ -91,21 +99,22 @@ int main(){
         new_sfd = accept(listener_sfd, (struct sockaddr*) &addr_storage, &sa_storage_len);
 
         if (clients_dll == NULL) {
-            clients_dll = init_client();
+            clients_dll = init_clientnode();
             current_client = clients_dll;
         }
         else {
-            current_client->next = init_client();
+            current_client->next = init_clientnode();
             current_client->next->prev = current_client;
             current_client = current_client->next;
         }
-
+        
+        recv(new_sfd, current_client->data.name, MAX_USERNAME_LEN, 0);
         current_client->data.sockfd = new_sfd;
         pthread_create(&(current_client->data.thread), NULL, handle_client, current_client);
     }
 }
 
-struct client_node* init_client(){
+struct client_node* init_clientnode(){
     struct client_node *node = malloc(sizeof(struct client_node));
     node->prev = NULL;
     node->next = NULL;

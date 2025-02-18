@@ -6,14 +6,19 @@
 #include<string.h>
 #include<errno.h>
 #include<unistd.h>
-#include<signal.h>
 
 int main(int argc, char *argv[]){
 
-    if(argc != 2) {
-        printf("usage: client <hostaddress>\n");
+    if(argc != 3) {
+        printf("usage: client <hostaddress> <your username>\n");
         exit(1);
     }
+    if(strlen(argv[2]) > MAX_USERNAME_LEN){
+        printf("username must be %d characters long at most\n", MAX_USERNAME_LEN);
+        exit(1);
+    }
+    char client_name[MAX_USERNAME_LEN];
+    strcpy(client_name, argv[2]);
 
     struct addrinfo hints, *res;
 
@@ -32,6 +37,7 @@ int main(int argc, char *argv[]){
         perror("connect() error");
         exit(-1);
     }
+    send(sockfd, client_name, sizeof(client_name) / sizeof(char), 0);
 
     if(fork() != 0) {
         char outbuf[MAX_MSG_LEN];
@@ -63,5 +69,4 @@ int main(int argc, char *argv[]){
             }
         }
     }
-    //TODO: handle SIGINT, freeaddrinfo and close file descriptors
 }
