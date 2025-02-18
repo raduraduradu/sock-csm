@@ -48,7 +48,7 @@ int main(int argc, char *argv[]){
                 printf("\nserver closed connection. Exiting.....\n");
                 exit(0);
             }
-            printf("\n%s\n", outbuf);
+            printf("%s\n", outbuf);
         }
     }
     else {

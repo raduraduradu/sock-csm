@@ -20,29 +20,38 @@ struct client_node *clients_dll; //doubly linked list node for client struct
 struct client_node *current_client;
 
 char last_msg[MAX_MSG_LEN];
+pthread_mutex_t sender_lock = PTHREAD_MUTEX_INITIALIZER;
+
+pthread_mutex_t removeNode_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void * handle_client(void *arg) {
     struct client_node *thisNode = (struct client_node*) arg;
+    char inbuf[MAX_MSG_LEN];
     while(1){
-        //lock
-        //recv into last_msg
-        int recvstatus = recv(thisNode->data.sockfd, last_msg, MAX_MSG_LEN, 0);
+        int recvstatus = recv(thisNode->data.sockfd, inbuf, MAX_MSG_LEN, 0);
         if (recvstatus == -1) {
             perror("recv() error");
             exit(-1);
         }
         else if (recvstatus == 0){
-            pthread_t thisThread = thisNode->data.thread;
+            struct client thisClient = thisNode->data;
+            pthread_mutex_lock(&removeNode_lock);
             removeNode(thisNode);
+            pthread_mutex_unlock(&removeNode_lock);
+
             printf("a client has disconnected\n");
-            pthread_exit(&thisThread);
+            pthread_exit(&(thisClient.thread));
         }
-        printf("%s\n", last_msg);
+        printf("%s\n", inbuf);
+        //lock
+        pthread_mutex_lock(&sender_lock);
+        strcpy(last_msg, inbuf);
         //send last_msg to all clients
         for(struct client_node *p = clients_dll; p != NULL; p = p->next){
             send(p->data.sockfd, last_msg, MAX_MSG_LEN, 0);
         }
         //unlock
+        pthread_mutex_unlock(&sender_lock);
     }
 }
 
