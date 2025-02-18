@@ -5,25 +5,16 @@
 #include<netdb.h>
 #include<string.h>
 #include<errno.h>
-#include<signal.h>
-#include<sys/mman.h>
-#include<semaphore.h>
 #include<unistd.h>
 #include<fcntl.h>
 #include<sys/stat.h>
 #include<pthread.h>
+#include<stdbool.h>
 
 #define BACKLOG 10
-#define SEM_SENDER_FN "/sendersem"
-
-//#define INIT_CLIENT {->prev = NULL, ->next = NULL}
-//#define MAX_CLIENTS 10
 
 struct client_node* init_client();
 void removeNode(struct client_node* node);
-
-//int client_sockets[MAX_CLIENTS];
-//pthread_t client_threads[MAX_CLIENTS];
 
 struct client_node *clients_dll; //doubly linked list node for client struct
 struct client_node *current_client;
@@ -37,7 +28,6 @@ void * handle_client(void *arg) {
         //recv into last_msg
         int recvstatus = recv(thisNode->data.sockfd, last_msg, MAX_MSG_LEN, 0);
         if (recvstatus == -1) {
-            printf("cam da\n");
             perror("recv() error");
             exit(-1);
         }
@@ -115,24 +105,25 @@ struct client_node* init_client(){
 }
 
 void removeNode(struct client_node* node){
-    if(node->prev == NULL && node->next == NULL){
-        free(node);
-        node = NULL;
+    bool noPrev = node->prev == NULL;
+    bool noNext = node->next == NULL;
+    
+    if(noPrev && noNext){
         clients_dll = NULL;
-        return;
     }
-    if(node->prev == NULL){
+    else if(noPrev){
         clients_dll = node->next;
         clients_dll->prev = NULL;
     }
-    else if (node->next == NULL){
+    else if(noNext){
         current_client = node->prev;
         current_client->next = NULL;
     }
-    else{
+    else {
         node->prev->next = node->next;
         node->next->prev = node->prev;
     }
+
     free(node);
     node = NULL;
 }
